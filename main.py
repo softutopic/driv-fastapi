@@ -5,6 +5,7 @@ from sqlalchemy import Connection
 from database import Database
 from src.routes.users import user
 from src.routes.categories import category
+from src.routes.subcategories import subcategoryRoute
 from fastapi.security import OAuth2PasswordBearer
 from src.functions.create_access_token import decrypt_token
 
@@ -13,7 +14,6 @@ app = FastAPI()
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
-    print(request.url.path)
     exempt_paths = [
         r"^/api/auth/?$",
         # r"^/api/categories/?$",
@@ -28,11 +28,13 @@ async def add_process_time_header(request: Request, call_next):
     if not request.headers.get("Authorization"):
         return JSONResponse(None, 401)
     else:
-        try:
-            decrypt = decrypt_token(request.headers.get("Authorization"))
-            return JSONResponse(decrypt, 200)
-        except:
-            return JSONResponse({"error": True, "message": "Token has expired"}, 401)
+        # try:
+            
+        if decrypt_token(request.headers.get("Authorization")):
+            return await call_next(request)
+        return JSONResponse({"error": True, "message": "Token has expired"}, 401)
+        # except Exception as e:
+        #     return JSONResponse({"error": True, "message": f"Token has expired {e}"}, 401)
 
 @app.get("/")
 def read_root(db: Database = Depends()):
@@ -42,3 +44,4 @@ def read_root(db: Database = Depends()):
 
 app.include_router(user)
 app.include_router(category)
+app.include_router(subcategoryRoute)
