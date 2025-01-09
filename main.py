@@ -2,7 +2,7 @@ import re
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import Connection
-from database import Database
+# from database import Database
 from src.routes.users import user
 from src.routes.categories import category
 from src.routes.subcategories import subcategoryRoute
@@ -38,9 +38,7 @@ async def add_process_time_header(request: Request, call_next):
         #     return JSONResponse({"error": True, "message": f"Token has expired {e}"}, 401)
 
 @app.get("/")
-def read_root(db: Database = Depends()):
-    connection : Connection = db.get_connection()
-    connection.close()
+def read_root():
     return {"Hello": "World"}
 
 app.include_router(user)
