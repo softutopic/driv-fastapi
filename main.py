@@ -6,6 +6,7 @@ from database import Database
 from src.routes.users import user
 from src.routes.categories import category
 from src.routes.subcategories import subcategoryRoute
+from src.routes.vehicles import vehicleRoute
 from fastapi.security import OAuth2PasswordBearer
 from src.functions.create_access_token import decrypt_token
 
@@ -19,7 +20,7 @@ async def add_process_time_header(request: Request, call_next):
         # r"^/api/categories/?$",
         # r"^/api/categories/[^/]+/?$",
         r"^/docs/?$",
-        r"^/openapi.json/?$"
+        r"^/openapi.json/?$",
     ]
 
     # Comprueba si la ruta actual coincide con alguno de los patrones exentos
@@ -45,3 +46,4 @@ def read_root(db: Database = Depends()):
 app.include_router(user)
 app.include_router(category)
 app.include_router(subcategoryRoute)
+app.include_router(vehicleRoute)

@@ -3,7 +3,6 @@ from typing import Annotated, List, Optional
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-#from src.models.categoryModel import Category, CategoryCreate, CategoryInDB, CategoryUpdate
 from dbCon import get_db
 from src.models.categoryModel import Category
 from src.models.subcategoryModel import SubcategoryCreate, SubcategoryInDB, Subcategory, SubcategoryUpdate
@@ -97,3 +96,16 @@ async def update_subcategory(
     db.commit()
     db.refresh(db_subcategory)
     return db_subcategory
+
+@subcategoryRoute.delete("/api/subcategories/{subcategory_id}", response_model=SubcategoryInDB)
+async def delete_subcategory(subcategory_id: uuid.UUID, db: DbDependency):
+    subcategory = db.query(Subcategory).filter(Subcategory.id == subcategory_id).first()
+    if subcategory is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Subcategory with uuid {subcategory_id} not found"
+        )
+    
+    db.delete(subcategory)
+    db.commit()
+    return subcategory
