@@ -1,11 +1,6 @@
-[phases.setup]
-commands = ["pip install --upgrade pip"]
-
 [phases.install]
-commands = ["pip install setuptools", pip install -r requirements.txt"]
-
-[phases.build]
-commands = []
-
-[phases.start]
-commands = ["python main.py"]  # Ajusta esto según el archivo principal de tu aplicación
+commands = [
+  "pip install --upgrade pip",
+  "pip install setuptools",
+  "pip install -r requirements.txt"
+]
