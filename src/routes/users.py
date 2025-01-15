@@ -34,3 +34,5 @@ def user_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
         return Response(status_code=404, content="User not found")
     
     return user_indb
+
+# TODO: Add create user route
