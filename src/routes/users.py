@@ -1,78 +1,36 @@
-from fastapi import APIRouter, Depends, status, Response, Request
-from psycopg2 import DatabaseError
-from psycopg2.extras import RealDictCursor
-from sqlalchemy import Connection
-from database import Database, database
-from src.models.UserModel import UserModel
+from fastapi import APIRouter, Depends, status, Response
+from fastapi.security import OAuth2PasswordBearer
+from src.models.UserModel import UserLogin, User, UserBaseResponse, UserLoginResponse
 import src.functions.password_crypt as password_crypt
-import src.middlewares.user_middleware as middleware
 import src.functions.create_access_token as at
+from sqlalchemy.orm import Session
+from dbCon import get_db
 
 user = APIRouter()
 
-
 @user.post("/api/auth/", status_code= status.HTTP_200_OK)
-def create_user(user: UserModel, response: Response, db: Database = Depends()):
+def auth_user(user: UserLogin, db: Session = Depends(get_db)):
+    user_indb = db.query(User).filter(User.email == user.email).first()
+    if user_indb is None:
+        return Response(status_code=status.HTTP_404_NOT_FOUND, content="User not found")
     
-    user_exists = middleware.validate_if_user_exist(email=user.email)
+    passbites = str(user_indb.password).encode('utf-8')
+    if not password_crypt.verify_password(user.password, passbites):
+        return Response(status_code=status.HTTP_401_UNAUTHORIZED, content="Invalid credentials")
     
-    if user_exists:
-        result = login(user)
-        if result:
-            return result
-        else:
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return {"error": True, "message": "Credentials are not valid"}
-    
-    crypt_password = password_crypt.hash_password(user.password)
-    connection: Connection = db.get_connection()
-    cursor = connection.connection.cursor(cursor_factory=RealDictCursor)
-    sql = """INSERT INTO users 
-            (name, username, email, password, phone) 
-            values (%s, %s, %s, %s, %s)"""
-    
-    try:
-        cursor.execute(sql, [user.name, user.username, user.email, str(crypt_password).replace("b'", "").replace("'",""), user.phone])
-        connection.connection.commit()
-        cursor.close()
-        connection.close()
-    except DatabaseError as e:
-        return {"error": True, "message": e.pgerror}
+    user_response = UserLoginResponse(access_token=at.create_access_token({"sub": str(user_indb.id)}), token_type="bearer", user=UserBaseResponse( id=user_indb.id, username=user_indb.username, name=user_indb.name, email=user_indb.email, phone=user_indb.phone, age=user_indb.age, business_id=user_indb.business_id))
 
-    result = login(user)
-    if result:
-            return result
-    else:
-        response.status_code = status.HTTP_400_BAD_REQUEST
-        return {"error": True, "message": "Credentials are not valid"}
+    return user_response
 
-@user.get("/api/users/me", status_code= status.HTTP_200_OK)
-def user_me(response: Response, request: Request):
-    token = request.headers.get("Authorization")
-    return {
-        "token": token,
-    }
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-""" Other functions
-"""
-def login(user: UserModel) -> bool:
-    db = database
-    connection: Connection = db.get_connection()
-    with connection.connection.cursor() as cursor :
-        sql = """SELECT name, username, password, email, phone from users where email = %s"""
-        cursor.execute(sql, [user.email])
-        data = cursor.fetchone()
-        cursor.close()
-        connection.connection.close()
-        if password_crypt.verify_password(user.password, str(data[2]).encode('utf8')):
-            result = {
-                "username": data[1],
-                "name" : data[0],
-                "email" : data[3],
-                "phone": data[4]
-            }
-            token = at.create(result)
-            result["token"] = token
-            return result
-        else:
-            return False
+@user.get("/api/users/me", status_code= status.HTTP_200_OK, response_model=UserBaseResponse)
+def user_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    user_id : str|None = at.decrypt_token(token)
+    if not user_id:
+        return Response(status_code=status.HTTP_401_UNAUTHORIZED, content="Invalid credentials")
+    user_indb = db.query(User).filter(User.id == user_id).first()
+    if user_indb is None:
+        return Response(status_code=404, content="User not found")
+    
+    return user_indb

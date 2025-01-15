@@ -1,8 +1,6 @@
 import re
-from fastapi import FastAPI, Depends, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import Connection
-# from database import Database
 from src.routes.users import user
 from src.routes.categories import category
 from src.routes.subcategories import subcategoryRoute
@@ -16,26 +14,27 @@ app = FastAPI()
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     exempt_paths = [
+        r"^/?$",
         r"^/api/auth/?$",
-        # r"^/api/categories/?$",
-        # r"^/api/categories/[^/]+/?$",
         r"^/docs/?$",
         r"^/openapi.json/?$",
     ]
 
-    # Comprueba si la ruta actual coincide con alguno de los patrones exentos
+    # Check if the current path matches any of the exempt patterns
     if any(re.match(pattern, request.url.path) for pattern in exempt_paths):
         return await call_next(request)
-    if not request.headers.get("Authorization"):
-        return JSONResponse(None, 401)
-    else:
-        # try:
-            
-        if decrypt_token(request.headers.get("Authorization")):
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return JSONResponse({"error": True, "message": "Authorization header missing or invalid"}, 401)
+
+    token = auth_header[len("Bearer "):]
+    try:
+        if decrypt_token(token):
             return await call_next(request)
         return JSONResponse({"error": True, "message": "Token has expired"}, 401)
-        # except Exception as e:
-        #     return JSONResponse({"error": True, "message": f"Token has expired {e}"}, 401)
+    except Exception as e:
+        return JSONResponse({"error": True, "message": f"Token validation failed: {e}"}, 401)
 
 @app.get("/")
 def read_root():

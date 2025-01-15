@@ -1,22 +1,45 @@
 
 import re
-from pydantic import BaseModel, EmailStr, Field, field_validator, ValidationError
+import uuid
+from dbCon import Base
 from typing import Optional
+from datetime import datetime
+from sqlalchemy import UUID, Column, Integer, String, DateTime, Boolean, ForeignKey
+from pydantic import BaseModel, EmailStr, Field, field_validator, ValidationError
 
-class UserModel(BaseModel):
-    # username: str = Field(min_length=3, max_length=50, )
-    # password: str = Field(min_length=8, max_length=200)
-    # name: str = Field(min_length=5, max_length=200)
-    # email: EmailStr
-    # phone: Optional[str] = Field(min_length=10, max_length=12) 
-    username: Optional[str] = None
-    password: Optional[str] = None
-    name: Optional[str] = None 
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    age: Optional[str] = None
-    business: Optional[str] = None
+
+class User(Base):
+    __tablename__ = 'users'
     
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
+    age = Column(Integer, nullable=True)
+    business_id = Column(Integer, ForeignKey('business.uuid', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # state = Column(Boolean, default=True)
+    
+class UserBase(BaseModel):
+    username: str
+    password: str
+    name: str
+    email: EmailStr
+    phone: str
+    age: Optional[int]
+    business_id: int
+    
+class UserBaseResponse(BaseModel):
+    username: Optional[str]
+    name: Optional[str]
+    email: Optional[EmailStr]
+    phone: Optional[str]
+    age: Optional[int]
+    
+class UserCreate(UserBase):
     @field_validator('username')
     def validate_username_length(cls, v):
         if len(v) < 4:
@@ -62,4 +85,28 @@ class UserModel(BaseModel):
         if not re.match(email_regex, v):
             raise ValueError("Invalid email format")
         return v
+    pass
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    age: Optional[str] = None
+    business_id: Optional[str] = None
+class UserInDB(UserBase):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+    # state: bool
     
+    class Config:
+        orm_mode = True
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserLoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: Optional[UserBaseResponse]
