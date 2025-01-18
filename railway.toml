@@ -1,6 +1,8 @@
 [phases.setup]
 commands = [
   "apt-get update",
-  "apt-get install -y python3-distutils",
-  "apt-get install -y python3-apt"
+  "apt-get install -y python3-venv",
+  "python3 -m venv /opt/venv",
+  "/opt/venv/bin/pip install --upgrade pip",
+  "/opt/venv/bin/pip install setuptools"
 ]
